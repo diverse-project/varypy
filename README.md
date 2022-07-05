@@ -13,4 +13,10 @@ In short, the goal of `varypy` is to replace `python` ;)
  * an URL of a git repo
  * the location of a Python notebook 
  * the location of a directory 
+
 + some (optional) instructions on what to execute (eg test suite, benchmark, main program)
+
+`varypy` internally uses either/or:
+ * `pipenv` 
+ * `poetry`
+ * `Docker` 
