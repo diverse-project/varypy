@@ -6,6 +6,7 @@ Executing Python programs/projetcs in multiple environments (varying Python vers
 The outcome will be a report on actual executions (pass/failures + results/traces of the executions/failures) on the different environments. 
 Some recommendations will be given eg don't use this Python version, don't use this library with this Python version, use this library version > 1.y, or use this specific set of versions to improve your performance, energy consumption, or accuracy. 
 A sensitivity analysis of the considered program with regards to variability in the computing environment is also planned. 
+In short, the goal of `varypy` is to replace `python` ;)  
 
 `varypy` can take as input:
  * the location of a Python program
