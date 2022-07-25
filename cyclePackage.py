@@ -121,14 +121,16 @@ if __name__ == '__main__':
                 print("Starting LOGS for : ")
                 print(prog+" @Version --> "+l[0][0])
                 print("----------------------------------")
+                #weird behavior with print pip err be careful check later
                 print("Logging of Pip output for return code --> " + l[0][3] +" : " + l[0][1].decode())
                 print("Logging of Pip err for return code --> " + l[0][3] + " : " + l[0][2].decode())
                 print("-----------------------------")
                 print("Logging output for " + pkg  + " @ return code --> " + l[1][3] + l[1][1].decode())
                 print("Logging error for " +pkg  + " @ return code --> " + l[1][3] + l[1][2].decode())
                 print("Logging of results from " + prog)
-                for e in l[2]:
-                    print(e.decode())
+                for e in range(len(l[2])):
+                    print(str(e)+" th iteration of "+prog+" for "+pkg+" : ")
+                    print(l[2][e].decode())
                 
 
         
