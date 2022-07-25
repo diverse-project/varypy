@@ -27,10 +27,10 @@ if __name__ == '__main__':
         prog = ""
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("prog", help="program to be used for cyclying dependecies")
+        parser.add_argument("prog", help="PATH or program to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
-        parser.add_argument("--display", help="simple version of logs for -S")
-        parser.add_argument("--ntimes",help="number of execution of prog for pkg version")
+        parser.add_argument("--display", help="S for simple display")
+        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
@@ -50,7 +50,8 @@ if __name__ == '__main__':
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
             #Install pkg from argv
             process = subprocess.Popen(["pipenv", "install", pkg+"=="+content_list[i]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            try: 
+            try:
+                #timeout is set to ntimes just in case to have some room 
                 out_p, err_p = process.communicate(timeout=int(ntimes)*100)
 
                 for k in range(0,int(ntimes)):
