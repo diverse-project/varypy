@@ -5,6 +5,7 @@ from re import sub
 import readline
 import subprocess
 import sys
+import time
 import pandas as pd
 
 
@@ -49,8 +50,8 @@ if __name__ == '__main__':
         Version = []
         Installation = []
         Execution= []
-        ReturnCodeInstallation = []
-        ReturnCodeExec = []
+        ReturnCode=[]
+        ExecutionTime=[]
         
         for i in range(60,63):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
@@ -63,10 +64,19 @@ if __name__ == '__main__':
                 for k in range(0,int(ntimes)):
                     
                         #exec prog from argv
+                        t1 = time.time()
                         execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                         # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
                         try:
                             out , err = execProg.communicate(timeout=100)
+                        except subprocess.TimeoutExpired:
+                            execProg.kill()
+                            out , err = execProg.communicate()
+                        t2 = time.time()
+                        #Recupere normalement le temps d'exec
+                        ExecutionTime.append(t2-t1)
+
+                        if execProg.returncode == 0 :
                             #copy result from arg prog to a var 
                             catout = subprocess.Popen(["cat","submission.csv"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                             try :
@@ -82,10 +92,6 @@ if __name__ == '__main__':
                             except subprocess.TimeoutExpired:
                                 catout.kill()
                                 cout , cerr = catout.communicate()
-
-                        except subprocess.TimeoutExpired:
-                            execProg.kill()
-                            out , err = execProg.communicate()
                         #create tuple from acquired data and add to a list
                         cLogs.append(cout)
                 log = ((content_list[i],out_p,err_p,str(process.returncode)),(content_list[i],out,err,str(execProg.returncode)),cLogs)
@@ -108,22 +114,21 @@ if __name__ == '__main__':
                     response = "PASS"
                     atWhere = "installation"
                     Installation.append(response)
-                    ReturnCodeInstallation.append(resCode_p)
                     if resCode=="0":
                         response = "PASS"
                         atWhere = "execution"
                         Execution.append(response)
-                        ReturnCodeExec.append(resCode)
+                        ReturnCode.append(resCode)
                     else:
                         response = "FAIL returnCode : " + resCode
                         atWhere = "execution"
                         Execution.append(response)
-                        ReturnCodeExec.append(resCode)
+                        ReturnCode.append(resCode)
                 else:
                     response = "FAIL returnCode : " + resCode_p
                     atWhere = "installation"
                     Installation.append(response)
-                    ReturnCodeInstallation.append(resCode_p)
+                    ReturnCode.append(resCode_p)
                 
                 #print("@" + atWhere + " --> " + response)
                 #print("Logging of results from " + prog)
@@ -148,7 +153,7 @@ if __name__ == '__main__':
                     print(l[2][e].decode())
         print("----------------------------------")
         print("LOGS : ")
-        data = {'Package':Package,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCodeInstallation':ReturnCodeInstallation,'ReturnCodeExec':ReturnCodeExec}
+        data = {'Package':Package,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime':ExecutionTime}
         df = pd.DataFrame(data)
         print(df)
 
