@@ -53,7 +53,7 @@ if __name__ == '__main__':
         ReturnCode=[]
         ExecutionTime=[]
         
-        for i in range(60,63):
+        for i in range(0,1):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
             #Install pkg from argv
             process = subprocess.Popen(["pipenv", "install", pkg+"=="+content_list[i]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -61,46 +61,52 @@ if __name__ == '__main__':
                 #timeout is set to ntimes just in case to have some room 
                 out_p, err_p = process.communicate(timeout=int(ntimes)*100)
 
-                for k in range(0,int(ntimes)):
-                    
-                        #exec prog from argv
-                        t1 = time.time()
-                        execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
-                        try:
-                            out , err = execProg.communicate(timeout=100)
-                        except subprocess.TimeoutExpired:
-                            execProg.kill()
-                            out , err = execProg.communicate()
-                        t2 = time.time()
-                        #Recupere normalement le temps d'exec
-                        ExecutionTime.append(t2-t1)
-
-                        if execProg.returncode == 0 :
-                            #copy result from arg prog to a var 
-                            catout = subprocess.Popen(["cat","submission.csv"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            try :
-                                cout , cerr = catout.communicate(timeout=100)
-                                try :
-                                    #create a submission file specific to the result of the current pkg 
-                                    catmkf = subprocess.Popen(["cat","submission.csv"],stdout=open(str(k)+pkg+content_list[i]+"submission.csv","w"),stderr=subprocess.PIPE)
-                                    cmkf , cerrmkf = catmkf.communicate(timeout=20)
-                                except : 
-                                    catmkf.kill()
-                                    cmkf, cerrmkf = catmkf.communicate()
-
-                            except subprocess.TimeoutExpired:
-                                catout.kill()
-                                cout , cerr = catout.communicate()
-                        #create tuple from acquired data and add to a list
-                        cLogs.append(cout)
-                log = ((content_list[i],out_p,err_p,str(process.returncode)),(content_list[i],out,err,str(execProg.returncode)),cLogs)
-                logs.append(log)
-
             except subprocess.TimeoutExpired:
                 process.kill()
                 out_p, err_p = process.communicate()
 
+            
+            for k in range(0,int(ntimes)):
+                #exec prog from argv
+                t1 = time.time()
+                execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
+                try:
+                    out , err = execProg.communicate(timeout=100)
+                except subprocess.TimeoutExpired:
+                    execProg.kill()
+                    out , err = execProg.communicate()
+                t2 = time.time()
+
+                #Get execution time supposedly 
+                if process.returncode==0:
+                    ExecutionTime.append(t2-t1)
+                else:
+                    ExecutionTime.append(0)
+
+                #Not really part of final product
+                if execProg.returncode == 0 :
+                    #copy result from arg prog to a var 
+                    catout = subprocess.Popen(["cat","submission.csv"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    try :
+                        cout , cerr = catout.communicate(timeout=100)
+                        try :
+                            #create a submission file specific to the result of the current pkg 
+                            catmkf = subprocess.Popen(["cat","submission.csv"],stdout=open(str(k)+pkg+content_list[i]+"submission.csv","w"),stderr=subprocess.PIPE)
+                            cmkf , cerrmkf = catmkf.communicate(timeout=20)
+                        except : 
+                            catmkf.kill()
+                            cmkf, cerrmkf = catmkf.communicate()
+
+                    except subprocess.TimeoutExpired:
+                        catout.kill()
+                        cout , cerr = catout.communicate()
+                    cLogs.append(cout)
+            #create tuple from acquired data and add to a list
+            log = ((content_list[i],out_p,err_p,str(process.returncode)),(content_list[i],out,err,str(execProg.returncode)),cLogs)
+            logs.append(log)
+
+        #Constructing dataframe from logs
         if option =="S":
             for l in logs:
                 Package.append(pkg)
@@ -120,14 +126,15 @@ if __name__ == '__main__':
                         Execution.append(response)
                         ReturnCode.append(resCode)
                     else:
-                        response = "FAIL returnCode : " + resCode
+                        response = "FAIL"
                         atWhere = "execution"
                         Execution.append(response)
                         ReturnCode.append(resCode)
                 else:
-                    response = "FAIL returnCode : " + resCode_p
+                    response = "FAIL"
                     atWhere = "installation"
                     Installation.append(response)
+                    Execution.append("None")
                     ReturnCode.append(resCode_p)
                 
                 #print("@" + atWhere + " --> " + response)
@@ -153,7 +160,7 @@ if __name__ == '__main__':
                     print(l[2][e].decode())
         print("----------------------------------")
         print("LOGS : ")
-        data = {'Package':Package,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime':ExecutionTime}
+        data = {'Package':Package,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
         df = pd.DataFrame(data)
         print(df)
 
