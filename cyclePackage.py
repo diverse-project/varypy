@@ -5,6 +5,7 @@ from re import sub
 import readline
 import subprocess
 import sys
+import pandas as pd
 
 
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
         prog = ""
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("prog", help="PATH or program to be used for cyclying dependecies")
+        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
         parser.add_argument("--display", help="S for simple display")
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version")
@@ -44,9 +45,14 @@ if __name__ == '__main__':
         #List of each iteration of output for N times
         cLogs = []
         ran = len(content_list)
-
+        Package = []
+        Version = []
+        Installation = []
+        Execution= []
+        ReturnCodeInstallation = []
+        ReturnCodeExec = []
         
-        for i in range(60,61):
+        for i in range(60,63):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
             #Install pkg from argv
             process = subprocess.Popen(["pipenv", "install", pkg+"=="+content_list[i]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -58,7 +64,7 @@ if __name__ == '__main__':
                     
                         #exec prog from argv
                         execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    
+                        # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
                         try:
                             out , err = execProg.communicate(timeout=100)
                             #copy result from arg prog to a var 
@@ -91,9 +97,9 @@ if __name__ == '__main__':
 
         if option =="S":
             for l in logs:
-                print("----------------------------------")
-                print("Starting LOGS for : ")
-                print(prog+" @Version --> "+l[0][0])
+                Package.append(pkg)
+                Version.append(l[0][0])
+                #print(prog+" @Version --> "+l[0][0])
                 resCode_p = l[0][3]
                 resCode = l[1][3]
                 response =""
@@ -101,19 +107,28 @@ if __name__ == '__main__':
                 if resCode_p=="0":
                     response = "PASS"
                     atWhere = "installation"
+                    Installation.append(response)
+                    ReturnCodeInstallation.append(resCode_p)
                     if resCode=="0":
                         response = "PASS"
                         atWhere = "execution"
+                        Execution.append(response)
+                        ReturnCodeExec.append(resCode)
                     else:
                         response = "FAIL returnCode : " + resCode
                         atWhere = "execution"
+                        Execution.append(response)
+                        ReturnCodeExec.append(resCode)
                 else:
                     response = "FAIL returnCode : " + resCode_p
                     atWhere = "installation"
+                    Installation.append(response)
+                    ReturnCodeInstallation.append(resCode_p)
                 
-                print("@" + atWhere + " --> " + response)
+                #print("@" + atWhere + " --> " + response)
                 #print("Logging of results from " + prog)
                 #print(l[2].decode())
+                
                 
         else:
             for l in logs:
@@ -131,6 +146,10 @@ if __name__ == '__main__':
                 for e in range(len(l[2])):
                     print(str(e)+" th iteration of "+prog+" for "+pkg+" : ")
                     print(l[2][e].decode())
-                
+        print("----------------------------------")
+        print("LOGS : ")
+        data = {'Package':Package,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCodeInstallation':ReturnCodeInstallation,'ReturnCodeExec':ReturnCodeExec}
+        df = pd.DataFrame(data)
+        print(df)
 
         
