@@ -3,6 +3,7 @@ from asyncio.subprocess import PIPE
 import getopt
 from re import sub
 import readline
+from socket import timeout
 import subprocess
 import sys
 import time
@@ -29,7 +30,7 @@ if __name__ == '__main__':
         prog = ""
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies")
+        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies",required=True)
         parser.add_argument("--pkg",help="package to be cycled",required=True)
         parser.add_argument("--display", help="S for simple display")
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version")
@@ -56,13 +57,13 @@ if __name__ == '__main__':
         ExecutionTime=[]
         Iteration=[]
         
-        for i in range(ran-1,ran):
+        for i in range(0,ran):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
             #Install pkg from argv
             process = subprocess.Popen(["pipenv", "install", pkg+"=="+content_list[i]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             try:
                 #timeout is set to ntimes just in case to have some room 
-                out_p, err_p = process.communicate(100)
+                out_p, err_p = process.communicate(timeout=20.0)
 
             except subprocess.TimeoutExpired:
                 process.kill()
@@ -78,7 +79,7 @@ if __name__ == '__main__':
                     execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
                     try:
-                        out , err = execProg.communicate(timeout=100)
+                        out , err = execProg.communicate(timeout=20.0)
                     except subprocess.TimeoutExpired:
                         execProg.kill()
                         out , err = execProg.communicate()
@@ -95,11 +96,11 @@ if __name__ == '__main__':
                         if outputfile != "": 
                             catout = subprocess.Popen(["cat",outputfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                             try :
-                                cout , cerr = catout.communicate(timeout=100)
+                                cout , cerr = catout.communicate(timeout=20.0)
                                 try :
                                     #create a submission file specific to the result of the current pkg 
                                     catmkf = subprocess.Popen(["cat",outputfile],stdout=open(str(k)+pkg+content_list[i]+outputfile,"w"),stderr=subprocess.PIPE)
-                                    cmkf , cerrmkf = catmkf.communicate(timeout=20)
+                                    cmkf , cerrmkf = catmkf.communicate(timeout=20.0)
                                 except : 
                                     catmkf.kill()
                                     cmkf, cerrmkf = catmkf.communicate()
