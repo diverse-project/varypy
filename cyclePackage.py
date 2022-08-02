@@ -1,6 +1,6 @@
 import argparse
 from asyncio.subprocess import PIPE
-import getopt
+import matplotlib.pyplot as plt
 from re import sub
 import readline
 from socket import timeout
@@ -8,6 +8,7 @@ import subprocess
 import sys
 import time
 import pandas as pd
+import xml.etree.ElementTree as ET
 
 
 
@@ -22,26 +23,82 @@ import pandas as pd
 
 
 
+
+def installPkg(pkg,version):
+    process = subprocess.Popen(["pipenv", "install", pkg+"=="+version], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        #timeout is set to ntimes just in case to have some room 
+        out_p, err_p = process.communicate(timeout=30.0)
+
+    except subprocess.TimeoutExpired:
+        process.kill()
+        out_p, err_p = process.communicate()
+
+    processRCode = process.returncode
+    return (version,out_p,err_p,processRCode)
+
+def execProg(prog,version):
+    execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        out , err = execProg.communicate(timeout=30.0)
+    except subprocess.TimeoutExpired:
+        execProg.kill()
+        out , err = execProg.communicate()
+    execProgRCode = execProg.returncode
+    return (version,out,err,execProgRCode)
+
+def averageCsv(names):
+    res = []
+    key =""
+    for n in names:
+        temp = pd.read_csv(n)
+        key = temp.keys() #tab of keys
+        res.append(temp)
+    df = pd.concat(res)
+    result=df.groupby(key[0], as_index=False).mean()
+    return result
+
+def getTests(dir):
+    process = subprocess.Popen(["pytest", "-q",dir,"--junitxml=xmlTest.xml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+    #timeout is set to ntimes just in case to have some room 
+        out_p, err_p = process.communicate(timeout=30.0)
+
+    except subprocess.TimeoutExpired:
+        process.kill()
+        out_p, err_p = process.communicate()
+
+    tree = ET.parse('xmlTest.xml')
+    root = tree.getroot()
+    return root[0][1].attrib
+
+
+
+
 if __name__ == '__main__':
 
         #usage must be python3 cyclePackage prog pkg [option]?
 
+        mainP = ""
         pkg = ""
         prog = ""
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies",required=True)
+        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
         parser.add_argument("--display", help="S for simple display")
-        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version")
-        parser.add_argument("--outputfile",help="ouputfile of prog if there is any")
+        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version",default=1)
+        parser.add_argument("--test",help="If prog is test file",action='store_true')
+        parser.add_argument("--outputfile",help="ouputfile of prog if there is any",default="")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
         ntimes = args.ntimes
         option = args.display
         outputfile = args.outputfile
+        test = args.test
 
+        print("What is going on in the mainP :"+mainP)
         #List of pkg version
         content_list = subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines()
         #List of log for each versions of pkg
@@ -56,41 +113,26 @@ if __name__ == '__main__':
         ReturnCode=[]
         ExecutionTime=[]
         Iteration=[]
+        csvLog=[]
         
-        for i in range(0,ran):
-            print("Testing for : " + pkg +"-"+ content_list[i] + " "+ntimes+" times")
+        for i in range(60,61):
+            print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
-            process = subprocess.Popen(["pipenv", "install", pkg+"=="+content_list[i]], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            try:
-                #timeout is set to ntimes just in case to have some room 
-                out_p, err_p = process.communicate(timeout=20.0)
-
-            except subprocess.TimeoutExpired:
-                process.kill()
-                out_p, err_p = process.communicate()
-            #Return code for tuple
-            processRCode = str(process.returncode)
-            
+            installP = installPkg(pkg,content_list[i])
+            execP = []
             for k in range(0,int(ntimes)):
                 #exec prog from argv
                 #get execution time
-                if process.returncode == 0:
+                #Check if return code of pipenv install is 0
+                if installP[3] == 0:
                     t1 = time.time()
-                    execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    # DONT FORGET TO MAKE A LIST OF ERROR AND OUTPUT NOW BECAUSE NTIMES!!!!
-                    try:
-                        out , err = execProg.communicate(timeout=20.0)
-                    except subprocess.TimeoutExpired:
-                        execProg.kill()
-                        out , err = execProg.communicate()
+                    execP = execProg(prog,content_list[i])
                     t2 = time.time()
                     #Time ellapsed for execution time
                     timep = t2 - t1
-                    #Return code so it won't cause error down the for
-                    execProgRCode = str(execProg.returncode)
 
                     #Not really part of final product
-                    if execProg.returncode == 0 :
+                    if execP[3] == 0 :
                         #copy result from arg prog to a var
                         #check if outputfile is passed as argument
                         if outputfile != "": 
@@ -108,15 +150,17 @@ if __name__ == '__main__':
                             except subprocess.TimeoutExpired:
                                 catout.kill()
                                 cout , cerr = catout.communicate()
-                else :
-                    out=""
-                    err=""
-                    timep=0
-                    cout=""
-                    execProgRCode=""
+
+                            csvLog.append(str(k)+pkg+content_list[i]+outputfile)
+                        else:
+                            cout=""
+                    else :
+                        timep=0
                 #create tuple from acquired data and add to a list
-                log = ((content_list[i],out_p,err_p,processRCode),(content_list[i],out,err,execProgRCode),k,timep,cout)
+                log = (installP,execP,k,timep,cout)
                 logs.append(log)
+                #add csv file to tab csvLog
+                
 
         #Constructing dataframe from logs
         if option =="S":
@@ -125,12 +169,12 @@ if __name__ == '__main__':
                 Version.append(l[0][0])
                 Iteration.append(l[2])
                 ExecutionTime.append(l[3])
-                #print(prog+" @Version --> "+l[0][0])
-                resCode_p = l[0][3]
-                resCode = l[1][3]
+                resCode_p = str(l[0][3])
+                
                 response =""
                 atWhere =""
                 if resCode_p=="0":
+                    resCode = str(l[1][3])
                     response = "PASS"
                     atWhere = "installation"
                     Installation.append(response)
@@ -139,7 +183,6 @@ if __name__ == '__main__':
                         atWhere = "execution"
                         Execution.append(response)
                         ReturnCode.append(resCode)
-                        #Get execution time supposedly 
                     else:
                         response = "FAIL"
                         atWhere = "execution"
@@ -184,5 +227,12 @@ if __name__ == '__main__':
         data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
         df = pd.DataFrame(data)
         print(df)
+        csvDf = averageCsv(csvLog)
+        for frame in csvLog:
+            df = pd.read_csv(frame)
+            
+        csvDf.plot.scatter(x="Predicted",y="Id")
+        plt.show()
+        print(csvDf)
 
         
