@@ -58,19 +58,23 @@ def averageCsv(names):
     result=df.groupby(key[0], as_index=False).mean()
     return result
 
-def getTests(dir):
+def getTests(dir,version):
     process = subprocess.Popen(["pytest", "-q",dir,"--junitxml=xmlTest.xml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
     #timeout is set to ntimes just in case to have some room 
-        out_p, err_p = process.communicate(timeout=30.0)
+        out, err = process.communicate(timeout=30.0)
 
     except subprocess.TimeoutExpired:
         process.kill()
-        out_p, err_p = process.communicate()
+        out, err = process.communicate()
 
     tree = ET.parse('xmlTest.xml')
     root = tree.getroot()
-    return root[0][1].attrib
+    resMap = {}
+    for attribute in root:
+        resMap[attribute.tag] = attribute.attrib
+        print(attribute.tag,attribute.attrib)
+    return (version,resMap,err,process.returncode)
 
 
 
@@ -115,7 +119,7 @@ if __name__ == '__main__':
         Iteration=[]
         csvLog=[]
         
-        for i in range(60,61):
+        for i in range(25,26):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
             installP = installPkg(pkg,content_list[i])
@@ -126,7 +130,10 @@ if __name__ == '__main__':
                 #Check if return code of pipenv install is 0
                 if installP[3] == 0:
                     t1 = time.time()
-                    execP = execProg(prog,content_list[i])
+                    if test:
+                        execP = getTests(prog,content_list[i])
+                    else:
+                        execP = execProg(prog,content_list[i])
                     t2 = time.time()
                     #Time ellapsed for execution time
                     timep = t2 - t1
