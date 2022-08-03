@@ -250,17 +250,13 @@ if __name__ == '__main__':
             installPRCode = installP[3]
 
             for k in range(0,int(ntimes)):
-                #exec prog from argv
-                #get execution time
-                #Check if return code of pipenv install is 0
-                execP = []
+                #check for test option 
                 if test:
                     t1 = time.time()
                     execP = getTests(prog,content_list[i],pkg,installPRCode)
                     t2 = time.time()
                     timep = t2 - t1
                     cout=""
-                    print("we are here bro")
                 else:
                     t1 = time.time()
                     execP = execProg(prog,content_list[i],installPRCode)
