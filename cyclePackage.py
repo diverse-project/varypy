@@ -76,6 +76,76 @@ def getTests(dir,version):
         print(attribute.tag,attribute.attrib)
     return (version,resMap,err,process.returncode)
 
+def constructDf(logs,pkg,verbose,test):
+        Package = []
+        Version = []
+        Installation = []
+        Execution= []
+        ReturnCode=[]
+        ExecutionTime=[]
+        Iteration=[]
+    #Constructing dataframe from logs
+        if not (verbose):
+            for l in logs:
+                Package.append(pkg)
+                Version.append(l[0][0])
+                Iteration.append(l[2])
+                ExecutionTime.append(l[3])
+                resCode_p = str(l[0][3])
+                response =""
+                atWhere =""
+                if resCode_p=="0":
+                    resCode = str(l[1][3])
+                    response = "PASS"
+                    atWhere = "installation"
+                    Installation.append(response)
+                    if resCode=="0":
+                        response = "PASS"
+                        atWhere = "execution"
+                        Execution.append(response)
+                        ReturnCode.append(resCode)
+                    else:
+                        response = "FAIL"
+                        atWhere = "execution"
+                        Execution.append(response)
+                        ReturnCode.append(resCode)
+                else:
+                    response = "FAIL"
+                    atWhere = "installation"
+                    Installation.append(response)
+                    Execution.append("None")
+                    ReturnCode.append(resCode_p)
+                
+        else:
+            for l in logs:
+                print("----------------------------------")
+                print("Starting LOGS for : ")
+                print(prog+" @Version --> "+l[0][0])
+                print("----------------------------------")
+                #weird behavior with print pip err be careful check later
+                print("Logging of Pip output for return code --> " + l[0][3] +" : " + l[0][1].decode())
+                print("Logging of Pip err for return code --> " + l[0][3] + " : " + l[0][2].decode())
+                print("-----------------------------")
+                print("Logging output for " + pkg  + " @ return code --> " + l[1][3] + l[1][1].decode())
+                print("Logging error for " +pkg  + " @ return code --> " + l[1][3] + l[1][2].decode())
+                print("Logging of results from " + prog)
+                for e in range(len(l[2])):
+                    print(str(e)+" th iteration of "+prog+" for "+pkg+" : ")
+                    print(l[2][e].decode())
+        print("----------------------------------")
+        print("LOGS : ")
+        print(len(Package))
+        print(len(Version))
+        print(len(Installation))
+        print(len(Execution))
+        print(len(ReturnCode))
+        print(len(ExecutionTime))
+        data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,
+        'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
+        df = pd.DataFrame(data)
+        return df
+
+
 
 
 
@@ -88,17 +158,17 @@ if __name__ == '__main__':
         prog = ""
         parser = argparse.ArgumentParser()
 
-        parser.add_argument("prog", help="PATH of program to be used for cyclying dependecies")
+        parser.add_argument("prog", help="PATH of program or directory to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
-        parser.add_argument("--display", help="S for simple display")
-        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version",default=1)
-        parser.add_argument("--test",help="If prog is test file",action='store_true')
+        parser.add_argument("--verbose", help="logs from every process",action='store_true')
+        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
+        parser.add_argument("--test",help="exectute tests from passed directory",action='store_true')
         parser.add_argument("--outputfile",help="ouputfile of prog if there is any",default="")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
         ntimes = args.ntimes
-        option = args.display
+        verbose = args.verbose
         outputfile = args.outputfile
         test = args.test
 
@@ -110,13 +180,7 @@ if __name__ == '__main__':
         #List of each iteration of output for N times
         cLogs = []
         ran = len(content_list)
-        Package = []
-        Version = []
-        Installation = []
-        Execution= []
-        ReturnCode=[]
-        ExecutionTime=[]
-        Iteration=[]
+        
         csvLog=[]
         
         for i in range(25,26):
@@ -170,69 +234,7 @@ if __name__ == '__main__':
                 
 
         #Constructing dataframe from logs
-        if option =="S":
-            for l in logs:
-                Package.append(pkg)
-                Version.append(l[0][0])
-                Iteration.append(l[2])
-                ExecutionTime.append(l[3])
-                resCode_p = str(l[0][3])
-                
-                response =""
-                atWhere =""
-                if resCode_p=="0":
-                    resCode = str(l[1][3])
-                    response = "PASS"
-                    atWhere = "installation"
-                    Installation.append(response)
-                    if resCode=="0":
-                        response = "PASS"
-                        atWhere = "execution"
-                        Execution.append(response)
-                        ReturnCode.append(resCode)
-                    else:
-                        response = "FAIL"
-                        atWhere = "execution"
-                        Execution.append(response)
-                        ReturnCode.append(resCode)
-                else:
-                    response = "FAIL"
-                    atWhere = "installation"
-                    Installation.append(response)
-                    Execution.append("None")
-                    ReturnCode.append(resCode_p)
-                
-                #print("@" + atWhere + " --> " + response)
-                #print("Logging of results from " + prog)
-                #print(l[2].decode())
-                
-                
-        else:
-            for l in logs:
-                print("----------------------------------")
-                print("Starting LOGS for : ")
-                print(prog+" @Version --> "+l[0][0])
-                print("----------------------------------")
-                #weird behavior with print pip err be careful check later
-                print("Logging of Pip output for return code --> " + l[0][3] +" : " + l[0][1].decode())
-                print("Logging of Pip err for return code --> " + l[0][3] + " : " + l[0][2].decode())
-                print("-----------------------------")
-                print("Logging output for " + pkg  + " @ return code --> " + l[1][3] + l[1][1].decode())
-                print("Logging error for " +pkg  + " @ return code --> " + l[1][3] + l[1][2].decode())
-                print("Logging of results from " + prog)
-                for e in range(len(l[2])):
-                    print(str(e)+" th iteration of "+prog+" for "+pkg+" : ")
-                    print(l[2][e].decode())
-        print("----------------------------------")
-        print("LOGS : ")
-        print(len(Package))
-        print(len(Version))
-        print(len(Installation))
-        print(len(Execution))
-        print(len(ReturnCode))
-        print(len(ExecutionTime))
-        data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
-        df = pd.DataFrame(data)
+        df = constructDf(logs,pkg,verbose,test)
         print(df)
         csvDf = averageCsv(csvLog)
         for frame in csvLog:
