@@ -293,9 +293,7 @@ if __name__ == '__main__':
                 #create tuple from acquired data and add to a list
                 log = (installP,execP,k,timep,cout)
                 logs.append(log)
-                #add csv file to tab csvLog
                 
-
         #Constructing dataframe from logs
         df = constructDf(logs,pkg,verbose,test)
         print(df)
