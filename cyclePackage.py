@@ -1,5 +1,6 @@
 import argparse
 from asyncio.subprocess import PIPE
+from tempfile import NamedTemporaryFile
 import matplotlib.pyplot as plt
 from re import sub
 import readline
@@ -58,8 +59,9 @@ def averageCsv(names):
     result=df.groupby(key[0], as_index=False).mean()
     return result
 
-def getTests(dir,version):
-    process = subprocess.Popen(["pytest", "-q",dir,"--junitxml=xmlTest.xml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def getTests(dir,version,pkg):
+    file = NamedTemporaryFile()
+    process = subprocess.Popen(["pytest","-q","--junit-xml="+pkg+version+file.name,dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
     #timeout is set to ntimes just in case to have some room 
         out, err = process.communicate(timeout=30.0)
@@ -68,15 +70,13 @@ def getTests(dir,version):
         process.kill()
         out, err = process.communicate()
 
-    tree = ET.parse('xmlTest.xml')
+    tree = ET.parse(pkg+version+file.name)
     root = tree.getroot()
-    resMap = {}
-    for attribute in root:
-        resMap[attribute.tag] = attribute.attrib
-        print(attribute.tag,attribute.attrib)
+    resMap = root[0].attrib
     return (version,resMap,err,process.returncode)
 
 def constructDf(logs,pkg,verbose,test):
+        data = {}
         Package = []
         Version = []
         Installation = []
@@ -84,37 +84,84 @@ def constructDf(logs,pkg,verbose,test):
         ReturnCode=[]
         ExecutionTime=[]
         Iteration=[]
+        TestTime=[]
+        TestErr=[]
+        TestFail=[]
+        TestSkip=[]
+        TestSucc=[]
     #Constructing dataframe from logs
         if not (verbose):
-            for l in logs:
-                Package.append(pkg)
-                Version.append(l[0][0])
-                Iteration.append(l[2])
-                ExecutionTime.append(l[3])
-                resCode_p = str(l[0][3])
-                response =""
-                atWhere =""
-                if resCode_p=="0":
-                    resCode = str(l[1][3])
-                    response = "PASS"
-                    atWhere = "installation"
-                    Installation.append(response)
-                    if resCode=="0":
+            if not test:
+                for l in logs:
+                    Package.append(pkg)
+                    Version.append(l[0][0])
+                    Iteration.append(l[2])
+                    ExecutionTime.append(l[3])
+                    resCode_p = str(l[0][3])
+                    response =""
+                    atWhere =""
+                    if resCode_p=="0":
+                        resCode = str(l[1][3])
                         response = "PASS"
-                        atWhere = "execution"
-                        Execution.append(response)
-                        ReturnCode.append(resCode)
+                        atWhere = "installation"
+                        Installation.append(response)
+                        if resCode=="0":
+                            response = "PASS"
+                            atWhere = "execution"
+                            Execution.append(response)
+                            ReturnCode.append(resCode)
+                        else:
+                            response = "FAIL"
+                            atWhere = "execution"
+                            Execution.append(response)
+                            ReturnCode.append(resCode)
                     else:
                         response = "FAIL"
-                        atWhere = "execution"
-                        Execution.append(response)
-                        ReturnCode.append(resCode)
-                else:
-                    response = "FAIL"
-                    atWhere = "installation"
-                    Installation.append(response)
-                    Execution.append("None")
-                    ReturnCode.append(resCode_p)
+                        atWhere = "installation"
+                        Installation.append(response)
+                        Execution.append("None")
+                        ReturnCode.append(resCode_p)
+                data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,
+        'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
+            else:
+                for l in logs:
+                    Package.append(pkg)
+                    Version.append(l[0][0])
+                    Iteration.append(l[2])
+                    ExecutionTime.append(l[3])
+                    TestTime.append(l[1][1]['time'])
+                    TestErr.append(l[1][1]['errors'])
+                    TestFail.append(l[1][1]['failures'])
+                    TestSkip.append(l[1][1]['skipped'])
+                    #Calculate success test
+                    TestSucc.append(int(l[1][1]['tests']) - int(l[1][1]['skipped']) - int(l[1][1]['failures']) - int(l[1][1]['errors']))
+                    resCode_p = str(l[0][3])
+                    response =""
+                    atWhere =""
+                    if resCode_p=="0":
+                        resCode = str(l[1][3])
+                        response = "PASS"
+                        atWhere = "installation"
+                        Installation.append(response)
+                        if resCode=="0":
+                            response = "PASS"
+                            atWhere = "execution"
+                            Execution.append(response)
+                            ReturnCode.append(resCode)
+                        else:
+                            response = "FAIL"
+                            atWhere = "execution"
+                            Execution.append(response)
+                            ReturnCode.append(resCode)
+                    else:
+                        response = "FAIL"
+                        atWhere = "installation"
+                        Installation.append(response)
+                        Execution.append("None")
+                        ReturnCode.append(resCode_p)
+                data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,
+        'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime,
+        'TestTime':TestTime,'TestErr':TestErr,'TestFail':TestFail,'TestSkip':TestSkip,'TestSucc':TestSucc}
                 
         else:
             for l in logs:
@@ -140,20 +187,24 @@ def constructDf(logs,pkg,verbose,test):
         print(len(Execution))
         print(len(ReturnCode))
         print(len(ExecutionTime))
-        data = {'Package':Package,'Iteration':Iteration,'Version':Version,'Installation':Installation,
-        'Execution':Execution,'ReturnCode':ReturnCode,'ExecutionTime(s)':ExecutionTime}
+        
         df = pd.DataFrame(data)
         return df
 
+def plotSome(csv):
+    csvDf = averageCsv(csvLog)
+    for frame in csvLog:
+        df = pd.read_csv(frame)
+        
+    csvDf.plot.scatter(x="Predicted",y="Id")
+    plt.show()
+    print(csvDf)
 
 
 
 
 if __name__ == '__main__':
 
-        #usage must be python3 cyclePackage prog pkg [option]?
-
-        mainP = ""
         pkg = ""
         prog = ""
         parser = argparse.ArgumentParser()
@@ -172,30 +223,30 @@ if __name__ == '__main__':
         outputfile = args.outputfile
         test = args.test
 
-        print("What is going on in the mainP :"+mainP)
         #List of pkg version
         content_list = subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines()
         #List of log for each versions of pkg
         logs = []
         #List of each iteration of output for N times
-        cLogs = []
         ran = len(content_list)
         
         csvLog=[]
         
-        for i in range(25,26):
+        for i in range(10,12):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
             installP = installPkg(pkg,content_list[i])
-            execP = []
+
             for k in range(0,int(ntimes)):
                 #exec prog from argv
                 #get execution time
                 #Check if return code of pipenv install is 0
+                execP = []
                 if installP[3] == 0:
                     t1 = time.time()
                     if test:
-                        execP = getTests(prog,content_list[i])
+                        execP = getTests(prog,content_list[i],pkg)
+                        print("we are here bro")
                     else:
                         execP = execProg(prog,content_list[i])
                     t2 = time.time()
@@ -236,12 +287,6 @@ if __name__ == '__main__':
         #Constructing dataframe from logs
         df = constructDf(logs,pkg,verbose,test)
         print(df)
-        csvDf = averageCsv(csvLog)
-        for frame in csvLog:
-            df = pd.read_csv(frame)
-            
-        csvDf.plot.scatter(x="Predicted",y="Id")
-        plt.show()
-        print(csvDf)
+        
 
         
