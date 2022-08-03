@@ -38,15 +38,19 @@ def installPkg(pkg,version):
     processRCode = process.returncode
     return (version,out_p,err_p,processRCode)
 
-def execProg(prog,version):
-    execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        out , err = execProg.communicate(timeout=30.0)
-    except subprocess.TimeoutExpired:
-        execProg.kill()
-        out , err = execProg.communicate()
-    execProgRCode = execProg.returncode
-    return (version,out,err,execProgRCode)
+def execProg(prog,version,returnCode):
+    if returnCode == 0:
+        execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            out , err = execProg.communicate(timeout=30.0)
+        except subprocess.TimeoutExpired:
+            execProg.kill()
+            out , err = execProg.communicate()
+        execProgRCode = execProg.returncode
+        return (version,out,err,execProgRCode)
+    else:
+        return(version,"None","None",returnCode)
+    
 
 def averageCsv(names):
     res = []
@@ -59,21 +63,28 @@ def averageCsv(names):
     result=df.groupby(key[0], as_index=False).mean()
     return result
 
-def getTests(dir,version,pkg):
-    file = NamedTemporaryFile()
-    process = subprocess.Popen(["pytest","-q","--junit-xml="+pkg+version+file.name,dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-    #timeout is set to ntimes just in case to have some room 
-        out, err = process.communicate(timeout=30.0)
+def getTests(dir,version,pkg,returnCode):
+    #just in case something goes wrong
+    resMap = resMap = {'name': 'pytest', 'errors': '0', 'failures': '0', 'skipped': '0', 'tests': '0', 'time': '0.0', 'timestamp': '', 'hostname': ''}
+    if returnCode == 0:
+        file = NamedTemporaryFile()
+        process = subprocess.Popen(["pytest","-q","--junit-xml="+file.name,dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+        #timeout is set to ntimes just in case to have some room 
+            out, err = process.communicate(timeout=30.0)
 
-    except subprocess.TimeoutExpired:
-        process.kill()
-        out, err = process.communicate()
-
-    tree = ET.parse(pkg+version+file.name)
-    root = tree.getroot()
-    resMap = root[0].attrib
-    return (version,resMap,err,process.returncode)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            out, err = process.communicate()
+        try:
+            tree = ET.parse(file.name)
+            root = tree.getroot()
+            resMap = root[0].attrib
+        except ET.ParseError:
+            resMap = {'name': 'pytest', 'errors': '0', 'failures': '0', 'skipped': '0', 'tests': '0', 'time': '0.0', 'timestamp': '', 'hostname': ''}
+        return (version,resMap,err,process.returncode)
+    else:
+        return (version,resMap,"None",returnCode)
 
 def constructDf(logs,pkg,verbose,test):
         data = {}
@@ -232,23 +243,27 @@ if __name__ == '__main__':
         
         csvLog=[]
         
-        for i in range(10,12):
+        for i in range(7,10):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
             installP = installPkg(pkg,content_list[i])
+            installPRCode = installP[3]
 
             for k in range(0,int(ntimes)):
                 #exec prog from argv
                 #get execution time
                 #Check if return code of pipenv install is 0
                 execP = []
-                if installP[3] == 0:
+                if test:
                     t1 = time.time()
-                    if test:
-                        execP = getTests(prog,content_list[i],pkg)
-                        print("we are here bro")
-                    else:
-                        execP = execProg(prog,content_list[i])
+                    execP = getTests(prog,content_list[i],pkg,installPRCode)
+                    t2 = time.time()
+                    timep = t2 - t1
+                    cout=""
+                    print("we are here bro")
+                else:
+                    t1 = time.time()
+                    execP = execProg(prog,content_list[i],installPRCode)
                     t2 = time.time()
                     #Time ellapsed for execution time
                     timep = t2 - t1
@@ -277,6 +292,7 @@ if __name__ == '__main__':
                         else:
                             cout=""
                     else :
+                        cout=""
                         timep=0
                 #create tuple from acquired data and add to a list
                 log = (installP,execP,k,timep,cout)
