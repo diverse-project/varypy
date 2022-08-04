@@ -1,5 +1,6 @@
 import argparse
 from asyncio.subprocess import PIPE
+import fnmatch
 from tempfile import NamedTemporaryFile
 import matplotlib.pyplot as plt
 from re import sub
@@ -85,6 +86,21 @@ def getTests(dir,version,pkg,returnCode):
         return (version,resMap,err,process.returncode)
     else:
         return (version,resMap,"None",returnCode)
+
+def releaseType(releasetype,list):
+    matching = []
+    if releasetype=="major":
+        pattern = '*.0.0'
+        matching = fnmatch.filter(list,pattern)
+    elif releasetype=="minor":
+        pattern = '*.[1-9].0'
+        matching = fnmatch.filter(list,pattern)
+    elif releasetype=="patch":
+        pattern = '*.*.[1-9]*'
+        matching = fnmatch.filter(list,pattern)
+    elif releasetype=="all":
+        matching = list
+    return matching
 
 def constructDf(logs,pkg,verbose,test):
         data = {}
@@ -192,12 +208,12 @@ def constructDf(logs,pkg,verbose,test):
                     print(l[2][e].decode())
         print("----------------------------------")
         print("LOGS : ")
-        print(len(Package))
-        print(len(Version))
-        print(len(Installation))
-        print(len(Execution))
-        print(len(ReturnCode))
-        print(len(ExecutionTime))
+        #print(len(Package))
+        #print(len(Version))
+        #print(len(Installation))
+        #print(len(Execution))
+        #print(len(ReturnCode))
+        #print(len(ExecutionTime))
         
         df = pd.DataFrame(data)
         return df
@@ -222,13 +238,15 @@ if __name__ == '__main__':
 
         parser.add_argument("prog", help="PATH of program or directory to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
+        parser.add_argument("--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
         parser.add_argument("--verbose", help="logs from every process",action='store_true')
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
         parser.add_argument("--test",help="exectute tests from passed directory",action='store_true')
-        parser.add_argument("--outputfile",help="ouputfile of prog if there is any",default="")
+        parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file",default="")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
+        releasetype = args.releasetype
         ntimes = args.ntimes
         verbose = args.verbose
         outputfile = args.outputfile
@@ -237,13 +255,16 @@ if __name__ == '__main__':
         #List of pkg version
         content_list = subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines()
         #List of log for each versions of pkg
+        temp = releaseType(releasetype,content_list)
+        content_list = temp
+        print(str(content_list))
         logs = []
         #List of each iteration of output for N times
         ran = len(content_list)
         
         csvLog=[]
         
-        for i in range(7,10):
+        for i in range(0,ran):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
             installP = installPkg(pkg,content_list[i])
