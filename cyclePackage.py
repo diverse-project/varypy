@@ -1,5 +1,6 @@
 import argparse
 from asyncio.subprocess import PIPE
+from email.policy import strict
 import fnmatch
 from tempfile import NamedTemporaryFile
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ from socket import timeout
 import subprocess
 import sys
 import time
+import json
 import pandas as pd
 import xml.etree.ElementTree as ET
 
@@ -101,6 +103,21 @@ def releaseType(releasetype,list):
     elif releasetype=="all":
         matching = list
     return matching
+
+def fetchDependency(pkg):
+    process = subprocess.Popen(['pipenv','graph','--json-tree'],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    try:
+        out,err = process.communicate(10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        out,err = process.communicate()
+    resMap = json.loads(out)
+    for e in resMap:
+        if e['key']==pkg:
+            s=e
+            return s
+    return resMap
+
 
 def constructDf(logs,pkg,verbose,test):
         data = {}
@@ -235,7 +252,7 @@ if __name__ == '__main__':
         pkg = ""
         prog = ""
         parser = argparse.ArgumentParser()
-
+        #Parse args and option
         parser.add_argument("prog", help="PATH of program or directory to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
         parser.add_argument("--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
@@ -254,10 +271,11 @@ if __name__ == '__main__':
 
         #List of pkg version
         content_list = subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines()
-        #List of log for each versions of pkg
         temp = releaseType(releasetype,content_list)
         content_list = temp
         print(str(content_list))
+        print(fetchDependency("sklearn"))
+        #List of log for each versions of pkg
         logs = []
         #List of each iteration of output for N times
         ran = len(content_list)
