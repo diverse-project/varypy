@@ -1,32 +1,17 @@
 import argparse
 from asyncio.subprocess import PIPE
-from email.policy import strict
 import fnmatch
 from tempfile import NamedTemporaryFile
 import matplotlib.pyplot as plt
-from re import sub
 import readline
-from socket import timeout
 import subprocess
-import sys
 import time
 import json
 import pandas as pd
 import xml.etree.ElementTree as ET
 
 
-
-# This a first iteration of varypy as in it is just to cycle a package from a passed argument
-# it must be use in an virtual env because it uses pip for installing the diffent version of the package
-# in this version in particular mostly for testing, the for loop is specificaly used in a range because otherwise
-# the loop goes on for a long time.
-# One of the main challenge will probably be to allow the use of pipenv since it's support for python version < 3.6 has been dropped.
-# For now the script works fine if use correctly (no error handling for now), it captures output and error from pip and the script passed in argument as well.
-# Continuing the lousy description, now use a fix python version for testing and dev, mainly testing on the simple decision tree algo. With 2 data set that are cut
-# for ease of exec. Still the same thing, cyclying package to test if the dependencies change the result of the program. Only cyclying one dependencie at a time.
-
-
-
+#Script used to cycly a package and get info on prog or test
 
 def installPkg(pkg,version):
     process = subprocess.Popen(["pipenv", "install", pkg+"=="+version], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
