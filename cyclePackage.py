@@ -68,14 +68,12 @@ def averageCsv(names):
 
 def getTests(dir,version,pkg,returnCode):
     #just in case something goes wrong
-    resMap = resMap = {'name': 'pytest', 'errors': '0', 'failures': '0', 'skipped': '0', 'tests': '0', 'time': '0.0', 'timestamp': '', 'hostname': ''}
+    resMap = {'name': 'pytest', 'errors': '0', 'failures': '0', 'skipped': '0', 'tests': '0', 'time': '0.0', 'timestamp': '', 'hostname': ''}
     if returnCode == 0:
         file = NamedTemporaryFile()
         process = subprocess.Popen(["pytest","-q","--junit-xml="+file.name,dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        try:
-        #timeout is set to ntimes just in case to have some room 
+        try: 
             out, err = process.communicate(timeout=30.0)
-
         except subprocess.TimeoutExpired:
             process.kill()
             out, err = process.communicate()
@@ -92,14 +90,11 @@ def getTests(dir,version,pkg,returnCode):
 def releaseType(releasetype,list):
     matching = []
     if releasetype=="major":
-        pattern = '*.0.0'
-        matching = fnmatch.filter(list,pattern)
+        matching = fnmatch.filter(list,'*.0.0')
     elif releasetype=="minor":
-        pattern = '*.[1-9].0'
-        matching = fnmatch.filter(list,pattern)
+        matching = fnmatch.filter(list,'*.[1-9]*.0')
     elif releasetype=="patch":
-        pattern = '*.*.[1-9]*'
-        matching = fnmatch.filter(list,pattern)
+        matching = fnmatch.filter(list,'*.*.[1-9]*')
     elif releasetype=="all":
         matching = list
     return matching
@@ -114,8 +109,7 @@ def fetchDependency(pkg):
     resMap = json.loads(out)
     for e in resMap:
         if e['key']==pkg:
-            s=e
-            return s
+            return e
     return resMap
 
 
@@ -235,7 +229,7 @@ def constructDf(logs,pkg,verbose,test):
         df = pd.DataFrame(data)
         return df
 
-def plotSome(csv):
+def plotSome(csvLog):
     csvDf = averageCsv(csvLog)
     for frame in csvLog:
         df = pd.read_csv(frame)
@@ -249,8 +243,6 @@ def plotSome(csv):
 
 if __name__ == '__main__':
 
-        pkg = ""
-        prog = ""
         parser = argparse.ArgumentParser()
         #Parse args and option
         parser.add_argument("prog", help="PATH of program or directory to be used for cyclying dependecies")
@@ -259,7 +251,7 @@ if __name__ == '__main__':
         parser.add_argument("--verbose", help="logs from every process",action='store_true')
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
         parser.add_argument("--test",help="exectute tests from passed directory",action='store_true')
-        parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file",default="")
+        parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
@@ -269,23 +261,20 @@ if __name__ == '__main__':
         outputfile = args.outputfile
         test = args.test
 
-        #List of pkg version
-        content_list = subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines()
-        temp = releaseType(releasetype,content_list)
-        content_list = temp
+        #List of pkg version and if major,minor,patch or all.
+        content_list = releaseType(releasetype,subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines())
         print(str(content_list))
         print(fetchDependency("sklearn"))
         #List of log for each versions of pkg
         logs = []
-        #List of each iteration of output for N times
         ran = len(content_list)
-        
         csvLog=[]
         
         for i in range(0,ran):
             print("Testing for : " + pkg +"-"+ content_list[i] + " "+str(ntimes)+" times")
             #Install pkg from argv
             installP = installPkg(pkg,content_list[i])
+            #Fetch returncode of installation
             installPRCode = installP[3]
 
             for k in range(0,int(ntimes)):
@@ -307,7 +296,7 @@ if __name__ == '__main__':
                     if execP[3] == 0 :
                         #copy result from arg prog to a var
                         #check if outputfile is passed as argument
-                        if outputfile != "": 
+                        if outputfile is not None: 
                             catout = subprocess.Popen(["cat",outputfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                             try :
                                 cout , cerr = catout.communicate(timeout=20.0)
