@@ -11,13 +11,13 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 
 
-#Script used to cycly a package and get info on prog or test
+#Script used to cycle a package and get info on prog or test
 
 def installPkg(pkg,version):
     process = subprocess.Popen(["pipenv", "install", pkg+"=="+version], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         #timeout is set to ntimes just in case to have some room 
-        out_p, err_p = process.communicate(timeout=30.0)
+        out_p, err_p = process.communicate(timeout=35.0)
 
     except subprocess.TimeoutExpired:
         process.kill()
@@ -56,7 +56,7 @@ def getTests(dir,version,pkg,returnCode):
     resMap = {'name': 'pytest', 'errors': '0', 'failures': '0', 'skipped': '0', 'tests': '0', 'time': '0.0', 'timestamp': '', 'hostname': ''}
     if returnCode == 0:
         file = NamedTemporaryFile()
-        process = subprocess.Popen(["pytest","-q","--junit-xml="+file.name,dir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(["pytest","-q","--junit-xml="+file.name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         try: 
             out, err = process.communicate(timeout=30.0)
         except subprocess.TimeoutExpired:
@@ -230,12 +230,11 @@ if __name__ == '__main__':
 
         parser = argparse.ArgumentParser()
         #Parse args and option
-        parser.add_argument("prog", help="PATH of program or directory to be used for cyclying dependecies")
+        parser.add_argument("--prog",help="PATH of program or directory to be used for cyclying dependecies")
         parser.add_argument("--pkg",help="package to be cycled",required=True)
         parser.add_argument("--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
         parser.add_argument("--verbose", help="logs from every process",action='store_true')
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
-        parser.add_argument("--test",help="exectute tests from passed directory",action='store_true')
         parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file")
         args = parser.parse_args()
         prog = args.prog
@@ -244,12 +243,19 @@ if __name__ == '__main__':
         ntimes = args.ntimes
         verbose = args.verbose
         outputfile = args.outputfile
-        test = args.test
+        test=False
+
+        #Check if project has any test
+        if fetchDependency("pytest") == "pytest":
+            test=True
+        elif prog is None:
+            print("Your project has nothing to test for therefore exiting")
+            exit(1)
 
         #List of pkg version and if major,minor,patch or all.
         content_list = releaseType(releasetype,subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines())
         print(str(content_list))
-        print(fetchDependency("sklearn"))
+        
         #List of log for each versions of pkg
         logs = []
         ran = len(content_list)
