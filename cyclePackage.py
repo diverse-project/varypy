@@ -1,13 +1,12 @@
 import argparse
 from asyncio.subprocess import PIPE
+from asyncore import write
 import fnmatch
 from tempfile import NamedTemporaryFile
-import matplotlib.pyplot as plt
 import readline
 import subprocess
 import time
 import json
-import pandas as pd
 import xml.etree.ElementTree as ET
 
 
@@ -39,17 +38,6 @@ def execProg(prog,version,returnCode):
     else:
         return(version,"None","None",returnCode)
     
-
-def averageCsv(names):
-    res = []
-    key =""
-    for n in names:
-        temp = pd.read_csv(n)
-        key = temp.keys() #tab of keys
-        res.append(temp)
-    df = pd.concat(res)
-    result=df.groupby(key[0], as_index=False).mean()
-    return result
 
 def getTests(dir,version,pkg,returnCode):
     #just in case something goes wrong
@@ -96,9 +84,8 @@ def fetchDependency(pkg):
         if e['key']==pkg:
             return e
     return resMap
-
-
-def constructDf(logs,pkg,verbose,test):
+    
+def constructDict(logs,pkg,verbose,test):
         data = {}
         Package = []
         Version = []
@@ -210,21 +197,10 @@ def constructDf(logs,pkg,verbose,test):
         #print(len(Execution))
         #print(len(ReturnCode))
         #print(len(ExecutionTime))
+        print(data)
+        with open("result.json", "w") as write_file:
+            json.dump(data, write_file, indent=4)
         
-        df = pd.DataFrame(data)
-        return df
-
-def plotSome(csvLog):
-    csvDf = averageCsv(csvLog)
-    for frame in csvLog:
-        df = pd.read_csv(frame)
-        
-    csvDf.plot.scatter(x="Predicted",y="Id")
-    plt.show()
-    print(csvDf)
-
-
-
 
 if __name__ == '__main__':
 
@@ -235,6 +211,7 @@ if __name__ == '__main__':
         parser.add_argument("--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
         parser.add_argument("--verbose", help="logs from every process",action='store_true')
         parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
+        parser.add_argument("--test",help="if your project using pytest use this option",action='store_true')
         parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file")
         args = parser.parse_args()
         prog = args.prog
@@ -243,12 +220,10 @@ if __name__ == '__main__':
         ntimes = args.ntimes
         verbose = args.verbose
         outputfile = args.outputfile
-        test=False
+        test=args.test
 
         #Check if project has any test
-        if fetchDependency("pytest") == "pytest":
-            test=True
-        elif prog is None:
+        if prog is None and not test:
             print("Your project has nothing to test for therefore exiting")
             exit(1)
 
@@ -312,10 +287,7 @@ if __name__ == '__main__':
                 #create tuple from acquired data and add to a list
                 log = (installP,execP,k,timep,cout)
                 logs.append(log)
-                
-        #Constructing dataframe from logs
-        df = constructDf(logs,pkg,verbose,test)
-        print(df)
-        
+        constructDict(logs,pkg,verbose,test)
+       
 
         
