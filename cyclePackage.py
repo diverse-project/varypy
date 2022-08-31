@@ -3,7 +3,6 @@ from asyncio.subprocess import PIPE
 from asyncore import write
 import fnmatch
 from tempfile import NamedTemporaryFile
-import readline
 import subprocess
 import time
 import json
@@ -26,17 +25,17 @@ def installPkg(pkg,version):
     return (version,out_p,err_p,processRCode)
 
 def execProg(prog,version,returnCode):
-    if returnCode == 0:
-        execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        try:
-            out , err = execProg.communicate(timeout=30.0)
-        except subprocess.TimeoutExpired:
-            execProg.kill()
-            out , err = execProg.communicate()
-        execProgRCode = execProg.returncode
-        return (version,out,err,execProgRCode)
-    else:
-        return(version,"None","None",returnCode)
+        if returnCode == 0:
+            execProg = subprocess.Popen(["python3",prog], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            try:
+                out , err = execProg.communicate(timeout=30.0)
+            except subprocess.TimeoutExpired:
+                execProg.kill()
+                out , err = execProg.communicate()
+            execProgRCode = execProg.returncode
+            return (version,out,err,execProgRCode)
+        else:
+            return(version,"None","None",returnCode)
     
 
 def getTests(dir,version,pkg,returnCode):
@@ -201,18 +200,19 @@ def constructDict(logs,pkg,verbose,test):
         with open("result.json", "w") as write_file:
             json.dump(data, write_file, indent=4)
         
+        
 
 if __name__ == '__main__':
 
         parser = argparse.ArgumentParser()
         #Parse args and option
-        parser.add_argument("--prog",help="PATH of program or directory to be used for cyclying dependecies")
-        parser.add_argument("--pkg",help="package to be cycled",required=True)
-        parser.add_argument("--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
-        parser.add_argument("--verbose", help="logs from every process",action='store_true')
-        parser.add_argument("--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
-        parser.add_argument("--test",help="if your project using pytest use this option",action='store_true')
-        parser.add_argument("--outputfile",help="ouputfile if prog outputs csv file")
+        parser.add_argument("--prog",help="PATH of program or directory to be used for cyclying dependecies",action='store')
+        parser.add_argument("pkg",help="package to be cycled")
+        parser.add_argument("-rt","--releasetype",help="what type of release to test for default major",default="major",choices=['minor','patch','all'])
+        parser.add_argument("-v","--verbose", help="logs from every process",action='store_true')
+        parser.add_argument("-N","--ntimes",help="INT number of execution of prog for pkg version default 1",default=1)
+        parser.add_argument("-t","--test",help="if your project using pytest use this option",action='store_true')
+        parser.add_argument("--outputfile",help="Name of the ouputfile if prog outputs csv file")
         args = parser.parse_args()
         prog = args.prog
         pkg = args.pkg
@@ -221,11 +221,6 @@ if __name__ == '__main__':
         verbose = args.verbose
         outputfile = args.outputfile
         test=args.test
-
-        #Check if project has any test
-        if prog is None and not test:
-            print("Your project has nothing to test for therefore exiting")
-            exit(1)
 
         #List of pkg version and if major,minor,patch or all.
         content_list = releaseType(releasetype,subprocess.check_output(["pip-versions", "list", pkg]).decode().splitlines())
@@ -251,39 +246,43 @@ if __name__ == '__main__':
                     t2 = time.time()
                     timep = t2 - t1
                     cout=""
-                else:
+                elif prog is not None:
                     t1 = time.time()
                     execP = execProg(prog,content_list[i],installPRCode)
                     t2 = time.time()
                     #Time ellapsed for execution time
                     timep = t2 - t1
-
+                else :
+                    print("Error nothing no test or program found")
+                    exit(1)
                     #Not really part of final product
-                    if execP[3] == 0 :
-                        #copy result from arg prog to a var
-                        #check if outputfile is passed as argument
-                        if outputfile is not None: 
-                            catout = subprocess.Popen(["cat",outputfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if execP[3] == 0 :
+                    #copy result from arg prog to a var
+                    #check if outputfile is passed as argument
+                    if outputfile is not None: 
+                        catout = subprocess.Popen(["cat",outputfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        try :
+                            cout , cerr = catout.communicate(timeout=20.0)
                             try :
-                                cout , cerr = catout.communicate(timeout=20.0)
-                                try :
-                                    #create a submission file specific to the result of the current pkg 
-                                    catmkf = subprocess.Popen(["cat",outputfile],stdout=open(str(k)+pkg+content_list[i]+outputfile,"w"),stderr=subprocess.PIPE)
-                                    cmkf , cerrmkf = catmkf.communicate(timeout=20.0)
-                                except : 
-                                    catmkf.kill()
-                                    cmkf, cerrmkf = catmkf.communicate()
+                                #create a submission file specific to the result of the current pkg 
+                                catmkf = subprocess.Popen(["cat",outputfile],stdout=open(str(k)+pkg+content_list[i]+outputfile,"w"),stderr=subprocess.PIPE)
+                                cmkf , cerrmkf = catmkf.communicate(timeout=20.0)
+                            except : 
+                                catmkf.kill()
+                                cmkf, cerrmkf = catmkf.communicate()
 
-                            except subprocess.TimeoutExpired:
-                                catout.kill()
-                                cout , cerr = catout.communicate()
+                        except subprocess.TimeoutExpired:
+                            catout.kill()
+                            cout , cerr = catout.communicate()
 
-                            csvLog.append(str(k)+pkg+content_list[i]+outputfile)
-                        else:
-                            cout=""
-                    else :
+                        csvLog.append(str(k)+pkg+content_list[i]+outputfile)
+                        with open("csvList.json",'w') as write_ifle:
+                            json.dump(csvLog,write_ifle,indent=4)
+                    else:
                         cout=""
-                        timep=0
+                else :
+                    cout=""
+                    timep=0
                 #create tuple from acquired data and add to a list
                 log = (installP,execP,k,timep,cout)
                 logs.append(log)
