@@ -20,3 +20,6 @@ In short, the goal of `varypy` is to replace `python` ;)
  * `pipenv` 
  * `poetry`
  * `Docker` 
+
+For more information about the project in its actual state you can check out : 
+![INFO.md](INFO.md)
