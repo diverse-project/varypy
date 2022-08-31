@@ -127,7 +127,7 @@ It will create a JSON file with the results of those execution that can then be 
 Just for future proofing it is best to use the same arguments as cyclePackage since cyclePackage is not supposed to be accessed.
 
 You should then have a dataframe looking like this :
-![colorama --releasetype minor -t](dataframe.png)
+![colorama --releasetype minor -t](image/dataframe.png)
 
 ### Second example
 
@@ -147,7 +147,7 @@ This option is very much designed around sdt.py it self so trying it on other pr
     ```
 You should now have 3 files based on the result of cyclePackage :
 
-![--releasetype minor scikit-learn --outputfile submission.csv](submission.png)
+![--releasetype minor scikit-learn --outputfile submission.csv](image/submission.png)
 
 They follow this naming : iteration + pacakge + version + outputfile .csv
 
@@ -156,12 +156,12 @@ They follow this naming : iteration + pacakge + version + outputfile .csv
     python3 ~/projet/varypy/varypy.py --prog sdt.py --releasetype minor scikit-learn --outputfile submission.csv
     ```
 It should output something like this : 
-![scikit-learn output](scikit-learn.png)
+![scikit-learn output](image/scikit-learn.png)
 
 It may vary though since installation is sometimes a bit finicky.
 
 You now you should have an std output of the mean of all csv generated, it should look something like this :
-![csvMean.png](csvMean.png)
+![csvMean.png](image/csvMean.png)
 
 Those result have been obtained with a subset of the data sets required for sdt.py to function, if you want more info on sdt or want to test for the complete data sets you can check out :
 https://www.kaggle.com/code/lllmmm45/simple-decision-tree
