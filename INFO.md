@@ -161,6 +161,7 @@ It should output something like this :
 It may vary though since installation is sometimes a bit finicky.
 
 You now you should have an std output of the mean of all csv generated, it should look something like this :
+
 ![csvMean.png](image/csvMean.png)
 
 Those result have been obtained with a subset of the data sets required for sdt.py to function, if you want more info on sdt or want to test for the complete data sets you can check out :
